@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+*.log
+.vite/
+.turbo/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*/.venv/
+*/venv/
+.env
+.env.*
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build outputs
+**/dist/
+**/build/
+
+# IDE / tooling
+.vscode/
+.idea/
+.DS_Store
+*.swp

@@ -80,6 +80,7 @@ async def test_search_listings_encodes_cursor(monkeypatch):
     response = await tools_service.search_listings(payload, session)
 
     assert response.results[0].unit_id == "unit-1"
+    assert response.results[0].property_name == "Tower"
     assert response.results[0].address.endswith("Metropolis")
     assert response.next_cursor is not None
     assert tools_service._decode_cursor(response.next_cursor) == (160000, "unit-2")

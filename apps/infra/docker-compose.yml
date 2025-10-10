@@ -1,0 +1,37 @@
+version: "3.9"
+services:
+  api:
+    build: ../api
+    env_file:
+      - ../api/.env.example
+    volumes:
+      - ../api:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+  web:
+    build: ../web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../web:/app
+    depends_on:
+      - api
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: rental_agent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+volumes:
+  pg:

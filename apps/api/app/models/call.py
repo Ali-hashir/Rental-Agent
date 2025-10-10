@@ -1,7 +1,7 @@
 """Call model."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
@@ -21,10 +21,15 @@ class Call(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     lead_id: Mapped[str | None] = mapped_column(ForeignKey("leads.id", ondelete="SET NULL"))
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     duration_sec: Mapped[int | None] = mapped_column(Integer)
     outcome: Mapped[str | None] = mapped_column(String)
     transcript_uri: Mapped[str | None] = mapped_column(String)
     metrics_json: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    consent_granted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consent_declined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     lead: Mapped["Lead | None"] = relationship("Lead", back_populates="calls")

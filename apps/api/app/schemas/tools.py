@@ -21,6 +21,8 @@ class ListingFilters(BaseModel):
 class ListingCard(BaseModel):
     unit_id: str
     property_id: str
+    property_name: str
+    property_city: str
     title: str
     rent: int
     deposit: int | None = None

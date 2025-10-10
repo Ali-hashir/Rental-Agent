@@ -46,6 +46,8 @@ async def search_listings(
         schemas.ListingCard(
             unit_id=row.unit_id,
             property_id=row.property_id,
+            property_name=row.property_name,
+            property_city=row.property_city,
             title=row.title,
             rent=row.rent,
             deposit=row.deposit,

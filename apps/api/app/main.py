@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
-from .routers import admin, rtc, tools
+from .routers import admin, agent, rtc, tools
 
 app = FastAPI(title="Rental Agent API", version="0.1.0")
 
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(rtc.router, prefix="/api/rtc", tags=["rtc"])
+app.include_router(agent.router, prefix="/api/agent", tags=["agent"])
 app.include_router(tools.router, prefix="/api/agent/tool", tags=["tools"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 

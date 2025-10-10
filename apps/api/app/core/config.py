@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Annotated
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field, RedisDsn, AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,16 +47,31 @@ class Settings(BaseSettings):
 
         Accept both standard `postgresql://` DSNs (e.g. Neon) and driver-qualified
         URLs. When the async driver is missing we rewrite the scheme to include
-        `+asyncpg` so that SQLAlchemy can create an async engine.
+        `+asyncpg` so that SQLAlchemy can create an async engine. SSL-specific query
+        parameters that are incompatible with asyncpg are stripped here.
         """
 
-        if self.database_url.startswith("postgresql+asyncpg://"):
-            return self.database_url
-        if self.database_url.startswith("postgres://"):
-            return self.database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-        if self.database_url.startswith("postgresql://"):
-            return self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return self.database_url
+        parsed = urlsplit(self.database_url)
+        query_params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query_params.pop("sslmode", None)
+        query_params.pop("channel_binding", None)
+
+        scheme = parsed.scheme
+        if scheme == "postgres":
+            scheme = "postgresql+asyncpg"
+        elif scheme == "postgresql":
+            scheme = "postgresql+asyncpg"
+
+        sanitized_query = urlencode(query_params, doseq=True)
+        return urlunsplit((scheme, parsed.netloc, parsed.path, sanitized_query, parsed.fragment))
+
+    @property
+    def database_ssl_required(self) -> bool:
+        """True when the source DSN requests SSL (e.g. Neon)."""
+
+        parsed = urlsplit(self.database_url)
+        params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        return params.get("sslmode", "").lower() in {"require", "verify-full"}
 
 
 @lru_cache

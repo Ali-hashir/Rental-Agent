@@ -7,10 +7,12 @@ import { ResultsPanel } from "../components/ResultsPanel";
 import { BookingDialog } from "../components/BookingDialog";
 import { VuMeter } from "../components/VuMeter";
 import { RecapForm } from "../components/RecapForm";
+import type { ListingCard } from "../types";
 
 export function CallPanel() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showBooking, setShowBooking] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<ListingCard | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
   const rtc = useRtcClient({ onLevel: setInputLevel });
 
@@ -34,6 +36,16 @@ export function CallPanel() {
   const stopCall = async () => {
     rtc.disconnect();
     setSessionId(null);
+  };
+
+  const handleBook = (listing: ListingCard) => {
+    setSelectedListing(listing);
+    setShowBooking(true);
+  };
+
+  const closeBooking = () => {
+    setShowBooking(false);
+    setSelectedListing(null);
   };
 
   return (
@@ -76,7 +88,7 @@ export function CallPanel() {
         </div>
       </section>
       <aside className="space-y-6">
-        <ResultsPanel onBook={() => setShowBooking(true)} />
+        <ResultsPanel onBook={handleBook} />
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <h2 className="text-lg font-semibold">Send recap</h2>
           <p className="mt-1 text-sm text-slate-400">Follow up with the visitor via SMS or email.</p>
@@ -85,7 +97,7 @@ export function CallPanel() {
           </div>
         </div>
       </aside>
-      <BookingDialog open={showBooking} onClose={() => setShowBooking(false)} />
+      <BookingDialog open={showBooking} unit={selectedListing} onClose={closeBooking} />
     </div>
   );
 }

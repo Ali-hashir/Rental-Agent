@@ -94,6 +94,7 @@ class BookViewingRequest(BaseModel):
 class BookViewingResponse(BaseModel):
     appointment_id: str
     calendar_event_url: str | None = None
+    lead_id: str
 
 
 class SendFollowUpRequest(BaseModel):

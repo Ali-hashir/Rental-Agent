@@ -1,84 +1,52 @@
-"""Application configuration via pydantic settings."""
+"""Application configuration for the minimal demo."""
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import Field, RedisDsn, AnyHttpUrl
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Central runtime configuration."""
+    """Runtime configuration."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_prefix="",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     app_env: str = Field(default="development")
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
 
-    database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/rental_agent"
-    )
-    redis_url: RedisDsn = Field(default="redis://localhost:6379/0")
+    gemini_api_key: str = Field(default="")
+    gemini_model: str = Field(default="gemini-2.0-flash")
+    gemini_model_fallbacks: list[str] = Field(default_factory=lambda: [
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-pro-latest",
+    ])
 
-    deepgram_api_key: str = Field(default="", min_length=0)
-    elevenlabs_api_key: str = Field(default="", min_length=0, alias="eleven_labs_api_key")
-    gemini_api_key: str = Field(default="", min_length=0)
+    whisper_model: str = Field(default="small")
+    whisper_device: str = Field(default="cpu")
+    whisper_compute_type: str = Field(default="int8")
 
-    livekit_url: str | None = None
-    livekit_api_key: str | None = None
-    livekit_api_secret: str | None = None
+    tts_provider: str = Field(default="gtts")
+    tts_voice: str = Field(default="en-US-AriaNeural")
 
-    email_from: str = Field(default="leasing@example.com")
-    sendgrid_api_key: str | None = None
-    sms_provider_key: str | None = None
+    @field_validator("gemini_model_fallbacks", mode="before")
+    @classmethod
+    def _split_fallbacks(cls, value: object) -> object:
+        """Allow comma-separated env values for Gemini fallback models."""
 
-    observability_endpoint: Annotated[str | None, AnyHttpUrl] = None
-
-    @property
-    def database_async_url(self) -> str:
-        """Return async-compatible SQLAlchemy URL.
-
-        Accept both standard `postgresql://` DSNs (e.g. Neon) and driver-qualified
-        URLs. When the async driver is missing we rewrite the scheme to include
-        `+asyncpg` so that SQLAlchemy can create an async engine. SSL-specific query
-        parameters that are incompatible with asyncpg are stripped here.
-        """
-
-        parsed = urlsplit(self.database_url)
-        query_params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-        query_params.pop("sslmode", None)
-        query_params.pop("channel_binding", None)
-
-        scheme = parsed.scheme
-        if scheme == "postgres":
-            scheme = "postgresql+asyncpg"
-        elif scheme == "postgresql":
-            scheme = "postgresql+asyncpg"
-
-        sanitized_query = urlencode(query_params, doseq=True)
-        return urlunsplit((scheme, parsed.netloc, parsed.path, sanitized_query, parsed.fragment))
-
-    @property
-    def database_ssl_required(self) -> bool:
-        """True when the source DSN requests SSL (e.g. Neon)."""
-
-        parsed = urlsplit(self.database_url)
-        params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-        return params.get("sslmode", "").lower() in {"require", "verify-full"}
+        if isinstance(value, str):
+            parts = [item.strip() for item in value.split(",") if item.strip()]
+            return parts
+        return value
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Return cached settings instance."""
 
-    return Settings()  # type: ignore[arg-type]
+    return Settings()
 
 
 settings = get_settings()

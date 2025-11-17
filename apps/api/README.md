@@ -1,27 +1,52 @@
-# Rental Agent API
+# Rental Voice Demo API
 
-FastAPI backend delivering real-time tooling, WebRTC signaling, and agent orchestration for the browser-based leasing receptionist.
+This FastAPI service implements the minimal push-to-talk loop for the leasing receptionist demo:
 
-## Database configuration
+1. Receive a short microphone clip via `POST /api/utterance`.
+2. Transcribe the audio with **faster-whisper** (CPU).
+3. Ask **Gemini Flash** for a brief, catalog-aware reply.
+4. Convert the reply to audio with **Edge TTS** and stream it back to the browser.
 
-The service targets a managed Postgres instance on Neon. Provide the connection string in `.env` at the repository root:
+The service also exposes `GET /api/health` for smoke checks.
+
+## Setup
 
 ```bash
-DATABASE_URL=postgresql://<username>:<password>@<your-neon-host>/<database>?sslmode=require&channel_binding=require
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-During startup the configuration layer automatically upgrades plain `postgresql://` URIs to the async `postgresql+asyncpg://` variant required by SQLAlchemy. This keeps the credentials identical to the Neon connection string you copy from the dashboard.
+Create `.env` alongside this file and add your Gemini key:
 
-Once the environment variable is in place, run database migrations or the bootstrap script to create tables before executing the agent tools or tests.
+```bash
+GEMINI_API_KEY=your-google-ai-api-key
+```
 
-## Signaling quickstart
+Optional tweaks live in `app/core/config.py` (voice name, Whisper model size, etc.).
 
-Use the new WebSocket endpoint to coordinate SDP/ICE exchange between the browser and the agent runtime:
+### Run
 
-- URL: `ws://<host>/api/rtc/signaling/{room}?participant_id=<your-id>` (omit the query parameter to let the server assign an ID).
-- On connection the server replies with a `{"type": "joined", "participants": [ ... ]}` payload so the caller knows who is already present.
-- When a second participant joins, everyone else receives `{"type": "participant_joined", "participant_id": "<id>"}`.
-- Send offer/answer/candidate messages as JSON objects containing `type` and `payload` keys. The server relays them to the rest of the room, wrapping them with the sender metadata: `{"type": "offer", "participant_id": "<id>", "payload": {...}}`.
-- When a participant disconnects, the remaining peers receive `{"type": "participant_left", ...}` so they can close their peer connections.
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-This in-memory fan-out is intended for development and single-process deployments. Replace it with a LiveKit or Redis-backed implementation before scaling horizontally.
+### Tests
+
+```bash
+pytest
+```
+
+## API contract
+
+`POST /api/utterance`
+
+- Request: `multipart/form-data` with a single `audio` field (WAV/PCM).
+- Response: binary audio (MP3) with the following headers:
+	- `X-Transcript` – transcription returned by Whisper
+	- `X-Model-Reply` – text supplied to TTS
+	- `X-Error: true` – present when a fallback apology clip is returned
+
+`GET /api/health`
+
+- Response: `{"status": "ok"}`

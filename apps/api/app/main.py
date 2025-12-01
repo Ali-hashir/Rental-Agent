@@ -609,6 +609,13 @@ async def index() -> HTMLResponse:
     return HTMLResponse(content=HTML_PAGE)
 
 
+@app.head("/", tags=["meta"])
+async def index_head() -> Response:
+    """Fast health checks issue HEAD /; answer with 200 to avoid noisy 405s."""
+
+    return Response(status_code=200)
+
+
 FAVICON_BYTES = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
 )
@@ -619,6 +626,13 @@ async def health() -> dict[str, str]:
     """Simple liveness probe."""
 
     return {"status": "ok"}
+
+
+@app.head("/api/health", tags=["meta"])
+async def health_head() -> Response:
+    """Allow HEAD for uptime monitors that only need the status code."""
+
+    return Response(status_code=200)
 
 
 @app.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)

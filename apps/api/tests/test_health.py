@@ -27,3 +27,15 @@ async def test_robots_and_favicon() -> None:
     assert "User-agent" in robots.text
     assert favicon.status_code == 200
     assert favicon.headers.get("content-type") == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_head_routes() -> None:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        root_head = await client.head("/")
+        health_head = await client.head("/api/health")
+
+    assert root_head.status_code == 200
+    assert health_head.status_code == 200

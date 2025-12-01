@@ -1,9 +1,10 @@
-"""Text-to-speech helper supporting Edge TTS and gTTS."""
+"""Text-to-speech helper supporting Edge TTS, gTTS, and a local fallback."""
 from __future__ import annotations
 
 import asyncio
 import importlib
 import logging
+import wave
 from io import BytesIO
 from typing import Tuple
 
@@ -55,6 +56,20 @@ async def _gtts(phrase: str) -> Tuple[bytes, str]:
     return audio, "audio/mpeg"
 
 
+def _offline_placeholder(duration_seconds: float = 0.8, sample_rate: int = 16000) -> Tuple[bytes, str]:
+    """Return a short silent WAV clip as a last-resort fallback."""
+
+    total_frames = max(1, int(duration_seconds * sample_rate))
+    silence = b"\x00\x00" * total_frames
+    buffer = BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(silence)
+    return buffer.getvalue(), "audio/wav"
+
+
 async def synthesize_speech(text: str) -> Tuple[bytes, str]:
     """Return audio bytes (MP3) for the supplied text."""
 
@@ -69,5 +84,8 @@ async def synthesize_speech(text: str) -> Tuple[bytes, str]:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Edge TTS failed (%s); falling back to gTTS", exc)
 
-    # Default to gTTS or fallback from Edge failure.
-    return await _gtts(phrase)
+    try:
+        return await _gtts(phrase)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("All configured TTS providers failed; returning placeholder audio: %s", exc)
+        return _offline_placeholder()

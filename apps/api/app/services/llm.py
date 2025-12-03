@@ -32,11 +32,15 @@ class LLMUnavailableError(RuntimeError):
     """Raised when no configured Gemini models are available."""
 
 
+def _has_api_key() -> bool:
+    return bool(settings.gemini_api_key.strip())
+
+
 @lru_cache
 def _configured_api() -> bool:
     """Configure the Google Generative AI client once."""
 
-    if not settings.gemini_api_key:
+    if not _has_api_key():
         raise RuntimeError("GEMINI_API_KEY is missing")
 
     genai.configure(api_key=settings.gemini_api_key)
@@ -184,6 +188,13 @@ async def generate_reply(
             f"{FALLBACK_SYSTEM_PROMPT}\n\n{_compose_catalog()}\n\n"
             f"Visitor: {user_text.strip()}\nReceptionist:"
         )
+
+    if not _has_api_key():
+        if agent_result is not None:
+            logger.warning("Gemini API key missing; falling back to policy template reply.")
+            _set_last_reply_source("policy-template")
+            return agent_result.reply_text
+        raise LLMUnavailableError("GEMINI_API_KEY is missing")
     candidates: list[str] = []
     seen: set[str] = set()
     for candidate in (settings.gemini_model, *settings.gemini_model_fallbacks):
@@ -218,5 +229,10 @@ async def generate_reply(
             logger.exception("Gemini generate_content failed for %s", model_name)
             last_error = exc
             continue
+
+    if agent_result is not None:
+        logger.warning("All Gemini models unavailable; using policy template reply.")
+        _set_last_reply_source("policy-template")
+        return agent_result.reply_text
 
     raise LLMUnavailableError("No Gemini models responded") from last_error
